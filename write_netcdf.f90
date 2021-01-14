@@ -1,4 +1,5 @@
 !This code was written by Charlotte Rogerson
+!For PX913 Mini-Project Assessment
 
 !This code writes and outputs the NetCDF4 file
 !Error messages are included in most steps 
@@ -11,15 +12,32 @@ MODULE write_netcdf
   USE ISO_FORTRAN_ENV
   USE netcdf
   
+  
   IMPLICIT NONE
   
   CONTAINS
   
-  SUBROUTINE write_file(filename, ierr, rho, phi, 
+  SUBROUTINE write_file(filename, ierr, rho, phi, Ex, Ey
   
   !!!!!!!!!!!!!!!!! Inputs into the subroutine !!!!!!!!!!!!!!!!!
+  !From the main part of the code
+  CHARACTER(LEN=100) :: filename
+  REAL(REAL64), DIMENSION(:,:), INTENT(IN) :: phi, rho
+  INTEGER(INT32) :: nx, ny
   
+  !Specific for the file
+  INTEGER :: ierr
   
+    
+  !!!!!!!!!!!!!!!!! Dimension names in the file !!!!!!!!!!!!!!!!!
+  CHARACTER(LEN=100), DIMENSION(2) :: dim_rho = (/"rho_x", "rho_y"/)
+  CHARACTER(LEN=100), DIMENSION(2) :: dim_phi = (/"phi_x", "phi_y"/)
+  CHARACTER(LEN=100), DIMENSION(2) :: dim_ex = (/"Ex_x", "Ex_y"/)
+  CHARACTER(LEN=100), DIMENSION(2) :: dim_ey = (/"Ey_x", "Ey_y"/)
+  !g = spatial grid,t = time
+  CHARACTER(LEN=100), DIMENSION(2) :: dim_v = (/"v_g", "v_t"/)
+  CHARACTER(LEN=100), DIMENSION(2) :: dim_a = (/"a_g", "a_t"/)
+  CHARACTER(LEN=100), DIMENSION(2) :: dim_pos = (/"pos_g", "pos_t"/) 
   
   !!!!!!!!!!!!!!!!! Creating the variable id's !!!!!!!!!!!!!!!!!
   INTEGER :: var_id_rho, var_id_phi, var_id_ex, var_id_ey, var_id_a
@@ -28,15 +46,13 @@ MODULE write_netcdf
   !Dimension id's
   INTEGER, DIMENSION(2) :: dim_id_rho, dim_id_phi, dim_id_ex, dim_id_ey
   INTEGER, DIMENSION(2) :: dim_id_a, dim_id_v, dim_id_pos
+  INTEGER :: file_id
   
   !Loop variable
   INTEGER :: i
-  !File id
-  INTEGER :: file_id
-  
-  
+   
   !!!!!!!!!!!!!!!!! Creating the file !!!!!!!!!!!!!!!!!
-  ! - caution: will overwrite if it already exists
+  ! - caution: this will overwrite the file if it already exists in the directory
   ierr = nf90_create(filename, NF90_CLOBBER, file_id)
   IF (ierr /= nf90_noerr) THEN
     PRINT *, TRIM(nf90_strerror(ierr))
