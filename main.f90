@@ -10,13 +10,14 @@ PROGRAM main
 
   IMPLICIT NONE
 
-  ! REAL(REAL64), PARAMETER :: tol=1e-5
-  INTEGER(INT32) :: nx, ny, i = 1, j = 1
+  ! Defining variable for electron using our defined type
+  TYPE(particle) :: elle
+  INTEGER(INT32) :: nx, ny, steps, i = 1, j = 1
   CHARACTER(LEN=100) :: filename
   REAL(REAL64) :: dx, dy
   ! REAL(REAL64) :: phix, phiy, etot = 0.0_REAL64, drms = 0.0_REAL64, ratio
   REAL(REAL64), DIMENSION(:,:), ALLOCATABLE :: phi, rho, Ex, Ey
-  REAL(REAL64), DIMENSION(:), ALLOCATABLE :: x, y
+  ! REAL(REAL64), DIMENSION(:), ALLOCATABLE :: x, y
 
   ! ! We use the subroutine 'parse' to check our command line arguments to make
   ! ! sure they are suitable for this simulation
@@ -35,26 +36,29 @@ PROGRAM main
   filename = 'poisson.txt'
 
   ! 5 in each directrion plus zero
-  nx = 50
-  ny = 50
-
+  nx = 51
+  ny = 51
+  steps = 1000
   ! Space step calculation
-  dx = 2.0_REAL64/REAL(nx, KIND=real64)
-  dy = 2.0_REAL64/REAL(ny, KIND=real64)
+  dx = 2.0_REAL64/REAL(nx-1, KIND=real64)
+  dy = 2.0_REAL64/REAL(ny-1, KIND=real64)
 
-  CALL init_rho(x, y, nx, ny, dx, dy, rho)
+  Print *,dx,dy
+
+  CALL init_rho(nx, ny, dx, dy, steps, rho, elle)
   CALL gauss_seidel(nx, ny, dx, dy, rho, phi)
   CALL elecF(nx, ny, dx, dy, phi, Ex, Ey)
+  CALL motion(dx, dy, steps, Ex, Ey, elle)
 
-  open(9, file="potential.txt",form='formatted')
-    23 FORMAT(3(ES23.12E3))
-    ! Choose format for text file ( real numbers )
-    do i=1,nx+1
-      do j = 1, ny+1
-        write(9,23) phi(i,j), Ex(i,j), Ey(i,j)
-      end do
-    end do
-  close(9)
+  ! open(9, file="potential.txt",form='formatted')
+  !   23 FORMAT(3(ES23.12E3))
+  !   ! Choose format for text file ( real numbers )
+  !   do i=1,nx
+  !     do j = 1, ny
+  !       write(9,23) phi(i,j), Ex(i,j), Ey(i,j)
+  !     end do
+  !   end do
+  ! close(9)
 
 
   ! PRINT *, phi
