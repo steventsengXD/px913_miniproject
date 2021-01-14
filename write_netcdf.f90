@@ -1,32 +1,35 @@
 !This code was written by Charlotte Rogerson
 !For PX913 Mini-Project Assessment
 
-!This code writes and outputs the NetCDF4 file
-!Error messages are included in most steps 
-!so any part which doesn't compile should be 
-!easier to identify
+!Writes a NetCDF file for the following variables
+!Charge density rho, potential phi, Electric field (both x and y),
+!Particle position, velocity and acceleration
 
 
 MODULE write_netcdf
 
   USE ISO_FORTRAN_ENV
   USE netcdf
-  
+  USE helpers
   
   IMPLICIT NONE
   
   CONTAINS
-  
-  SUBROUTINE write_file(filename, ierr, rho, phi, Ex, Ey
+  !Not sure if need to include ierr?
+  SUBROUTINE write_file(filename, rho, phi, Ex, Ey, elle)
   
   !!!!!!!!!!!!!!!!! Inputs into the subroutine !!!!!!!!!!!!!!!!!
   !From the main part of the code
   CHARACTER(LEN=100) :: filename
-  REAL(REAL64), DIMENSION(:,:), INTENT(IN) :: phi, rho
+  REAL(REAL64), DIMENSION(:,:), INTENT(IN) :: phi, rho, Ex, Ey
   INTEGER(INT32) :: nx, ny
   
   !Specific for the file
   INTEGER :: ierr
+  
+  !Types - conatined in the helpers.f90 code
+  !This gives the position (r), velocity (v) and acceleration (a)
+  TYPE(particle) :: elle !electron
   
     
   !!!!!!!!!!!!!!!!! Dimension names in the file !!!!!!!!!!!!!!!!!
@@ -40,8 +43,8 @@ MODULE write_netcdf
   CHARACTER(LEN=100), DIMENSION(2) :: dim_pos = (/"pos_g", "pos_t"/) 
   
   !!!!!!!!!!!!!!!!! Creating the variable id's !!!!!!!!!!!!!!!!!
-  INTEGER :: var_id_rho, var_id_phi, var_id_ex, var_id_ey, var_id_a
-  INTEGER :: var_id_v, var_id_pos
+  INTEGER :: var_id_rho, var_id_phi, var_id_ex, var_id_ey
+  INTEGER :: var_id_v, var_id_pos, var_id_a
   
   !Dimension id's
   INTEGER, DIMENSION(2) :: dim_id_rho, dim_id_phi, dim_id_ex, dim_id_ey
@@ -62,19 +65,17 @@ MODULE write_netcdf
   !!!!!!!!!!!!!!!!!! Variable sizes/shape !!!!!!!!!!!!!!!!!
   size_rho = SHAPE(rho)
   size_phi = SHAPE(phi)
-  size_ex = SHAPE(ex)
-  size_ey = SHAPE(ey)
+  size_ex = SHAPE(Ex)
+  size_ey = SHAPE(Ey)
   size_a = SHAPE(a)
   size_v = SHAPE(v)
   size_pos = SHAPE(pos)
-  
   
   !Error messages if code did not run correctly
   IF (ierr /= nf90_noerr) THEN
     PRINT *, TRIM(nf90_strerror(ierr))
     RETURN
   END IF
-  
   
   !!!!!!!!!!!!!!!!! Global attributes from the main code !!!!!!!!!!!!!!!!!
   !Problem
@@ -120,7 +121,7 @@ MODULE write_netcdf
 
   !Electric field in the x-direction Ex
    DO i=1,2
-    ierr = nf90_def_dim(file_id, ex(i),size_ex(i), dim_id_ex(i))
+    ierr = nf90_def_dim(file_id, Ex(i),size_ex(i), dim_id_ex(i))
     IF (ierr /= nf90_noerr) THEN
       PRINT *, TRIM(nf90_strerror(ierr))
       RETURN
@@ -130,7 +131,7 @@ MODULE write_netcdf
   
   !Electric field in the y-direction Ey
    DO i=1,2
-    ierr = nf90_def_dim(file_id, ey(i),size_ey(i), dim_id_ey(i))
+    ierr = nf90_def_dim(file_id, Ey(i),size_ey(i), dim_id_ey(i))
     IF (ierr /= nf90_noerr) THEN
       PRINT *, TRIM(nf90_strerror(ierr))
       RETURN
