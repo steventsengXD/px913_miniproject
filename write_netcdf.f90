@@ -63,29 +63,94 @@ MODULE write_netcdf
   !!!!!!!!!!!!!!!!! Global attributes from the main code !!!!!!!!!!!!!!!!!
   !Problem
   ierr = nf90_put_att(file_id, NF90_GLOBAL, "problem", 
-  
-  
+  IF (ierr /= nf90_noerr) THEN
+    PRINT *, TRIM(nf90_strerror(ierr))
+    RETURN
+  END IF
+  !nx
+  ierr = nf90_put_att(file_id, NF90_GLOBAL, "nx", nx)
+  IF (ierr /= nf90_noerr) THEN
+    PRINT *, TRIM(nf90_strerror(ierr))
+    RETURN
+  END IF
+  !ny
+  ierr = nf90_put_att(file_id, NF90_GLOBAL, "ny", ny)
+  IF (ierr /= nf90_noerr) THEN
+    PRINT *, TRIM(nf90_strerror(ierr))
+    RETURN
+  END IF
+    
   !!!!!!!!!!!!!!!!! Inputting the data !!!!!!!!!!!!!!!!!
+  !Need both columns in the data so do DO loops between i=1,2
   !The data for the density, rho
-  
+  DO i=1,2
+    ierr = nf90_def_dim(file_id, rho(i),size_rho(i), dim_id_rho(i))
+    IF (ierr /= nf90_noerr) THEN
+      PRINT *, TRIM(nf90_strerror(ierr))
+      RETURN
+    END IF
+  END DO
+  ierr = nf90_def_var(file_id, "Charge Density", NF90_DOUBLE, dim_id_rho, var_id_rho)
   
   !The data for the potential, phi
-  
-  
-  !The data for the Electric fields
+  DO i=1,2
+    ierr = nf90_def_dim(file_id, phi(i),size_phi(i), dim_id_phi(i))
+    IF (ierr /= nf90_noerr) THEN
+      PRINT *, TRIM(nf90_strerror(ierr))
+      RETURN
+    END IF
+  END DO
+  ierr = nf90_def_var(file_id, "Electric Potential", NF90_DOUBLE, dim_id_phi, var_id_phi)  
+
   !Electric field in the x-direction Ex
-  
+   DO i=1,2
+    ierr = nf90_def_dim(file_id, ex(i),size_ex(i), dim_id_ex(i))
+    IF (ierr /= nf90_noerr) THEN
+      PRINT *, TRIM(nf90_strerror(ierr))
+      RETURN
+    END IF
+  END DO
+  ierr = nf90_def_var(file_id, "Ex_field", NF90_DOUBLE, dim_id_ex, var_id_ex)
   
   !Electric field in the y-direction Ey
+   DO i=1,2
+    ierr = nf90_def_dim(file_id, ey(i),size_ey(i), dim_id_ey(i))
+    IF (ierr /= nf90_noerr) THEN
+      PRINT *, TRIM(nf90_strerror(ierr))
+      RETURN
+    END IF
+  END DO
+  ierr = nf90_def_var(file_id, "Ey_field", NF90_DOUBLE, dim_id_ey, var_id_ey)  
   
   !The data for electron position
-  
+   DO i=1,2
+    ierr = nf90_def_dim(file_id, pos(i),size_pos(i), dim_id_pos(i))
+    IF (ierr /= nf90_noerr) THEN
+      PRINT *, TRIM(nf90_strerror(ierr))
+      RETURN
+    END IF
+  END DO
+  ierr = nf90_def_var(file_id, "Position", NF90_DOUBLE, dim_id_pos, var_id_pos)  
   
   !The data for electron velocity
-  
+   DO i=1,2
+    ierr = nf90_def_dim(file_id, vel(i),size_v(i), dim_id_v(i))
+    IF (ierr /= nf90_noerr) THEN
+      PRINT *, TRIM(nf90_strerror(ierr))
+      RETURN
+    END IF
+  END DO
+  ierr = nf90_def_var(file_id, "Velocity", NF90_DOUBLE, dim_id_v, var_id_v)  
   
   !The data for electron acceleration
-  
+   DO i=1,2
+    ierr = nf90_def_dim(file_id, accel(i),size_a(i), dim_id_a(i))
+    IF (ierr /= nf90_noerr) THEN
+      PRINT *, TRIM(nf90_strerror(ierr))
+      RETURN
+    END IF
+  END DO
+  ierr = nf90_def_var(file_id, "Acceleration", NF90_DOUBLE, dim_id_a, var_id_a)  
   
   
   !!!!!!!!!!!!!!!!! Metadata !!!!!!!!!!!!!!!!!
