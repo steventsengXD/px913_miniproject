@@ -10,13 +10,12 @@
 
 #Uploading the NetCDF file
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
 import netCDF4 as nc
 import numpy as np
 
 
 #Accessing the dataset
-file = nc.Dataset('filename.nc4', mode='r', format="NETCDF4") 
+file = nc.Dataset('electron.nc4', mode='r', format="NETCDF4") 
 #Sanity checks - uncomment if not needed
 print(file)
 
@@ -38,8 +37,8 @@ print(pos)
 #pos[:,0] = x_data, pos[:,1] = y_data, 
 
 #This sets the grid size - possibly change later to be user defined
-xdata = np.linspace(-1, 1, 100)
-ydata = np.linspace(-1, 1, 100)
+xdata = np.linspace(-1, 1, 50)
+ydata = np.linspace(-1, 1, 50)
 
 
 #Pseudocolour plot of the variable Ex
