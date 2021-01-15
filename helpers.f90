@@ -2,57 +2,96 @@ MODULE helpers
 
   ! We import the modules that are utilized by these subroutines/functions
   ! USE command_line
+  USE domain_tools
   USE ISO_FORTRAN_ENV
 
   IMPLICIT NONE
 
+
+
+  TYPE xygrid
+    REAL(REAL64), DIMENSION(:), ALLOCATABLE :: x, y
+  END TYPE xygrid
+
+
   ! Defined type for particle where r is position, v is velosity, a is acceleration
   TYPE particle
-
     REAL(REAL64), DIMENSION(:,:), ALLOCATABLE :: r, v, a
-
   END TYPE particle
 
 
   CONTAINS
 
 
-  SUBROUTINE init_rho(nx, ny, dx, dy, steps, rho, elle)
+  SUBROUTINE init_conditions(nx, ny, dx, dy, steps, rho, elle, ic)
 
+    TYPE(xygrid) :: xy
     TYPE(particle), INTENT(INOUT) :: elle
+    INTEGER(INT32), PARAMETER :: ghosts = 1_INT32
     INTEGER(INT32) :: i, j
     INTEGER(INT32), INTENT(IN) :: nx, ny, steps
-    REAL(REAL64), INTENT(IN) :: dx, dy
-    REAL(REAL64), DIMENSION(:,:), ALLOCATABLE :: xy
+    REAL(REAL64), DIMENSION(2) :: xyrange
+    REAL(REAL64), INTENT(INOUT) :: dx, dy
+    ! REAL(REAL64), DIMENSION(:), ALLOCATABLE :: x, y
     REAL(REAL64), DIMENSION(:,:), ALLOCATABLE :: rho
+    CHARACTER(LEN=10), INTENT(IN) :: ic
 
     ! ALLOCATE(rho(2*nx+1,2*ny+1))
     ALLOCATE(elle%r(0:steps,2))
     ALLOCATE(elle%v(0:steps,2))
-    ALLOCATE(xy(0:nx+1,0:ny+1))
+    ! ALLOCATE(xy(0:nx+1,0:ny+1))
     ALLOCATE(rho(0:nx+1,0:ny+1))
 
-    xy(1,:)=-1
-    DO i=2,nx
-      xy(i,1) = xy(i-1,1) + dx
-      xy(i,2) = xy(i-1,2) + dy
-    END DO
+    xyrange = (/ -1.0_REAL64, 1.0_REAL64 /)
 
-    ! PRINT*, xy
+    CALL create_axis(xy%x, nx-1, xyrange, ghosts)
+    CALL create_axis(xy%y, ny-1, xyrange, ghosts)
+    print*, xy%x, xy%y
 
-    ! Setting initial position and velocity
-    elle%r(0,:) = (/0.1_REAL64, 0.0_REAL64/)
-    elle%v(0,:) = (/0.0_REAL64, 0.0_REAL64/)
+    ! Space step calculation
+    dx = 2.0_REAL64/REAL(nx-1, KIND=real64)
+    dy = 2.0_REAL64/REAL(ny-1, KIND=real64)
 
-    DO i = 1,nx
-      DO j = 1,ny
-        rho(i,j) = EXP(-(xy(i,1)/0.1_REAL64)**2 - (xy(j,2)/0.1_REAL64)**2)
+    IF (ic == 'null') THEN
+
+      ! Setting initial position and velocity
+      elle%r(0,:) = (/0.0_REAL64, 0.0_REAL64/)
+      elle%v(0,:) = (/0.1_REAL64, 0.1_REAL64/)
+
+      rho(i,j) = 0.0_REAL64
+
+    ELSE IF (ic == 'single') THEN
+
+      ! Setting initial position and velocity
+      elle%r(0,:) = (/0.1_REAL64, 0.0_REAL64/)
+      elle%v(0,:) = (/0.0_REAL64, 0.0_REAL64/)
+
+      DO i = 1,nx
+        DO j = 1,ny
+          rho(i,j) = EXP(-(xy%x(i)/0.1_REAL64)**2 - (xy%y(j)/0.1_REAL64)**2)
+        END DO
       END DO
-    END DO
 
-  DEALLOCATE(xy)
+    ELSE IF (ic == 'double') THEN
 
-  END SUBROUTINE init_rho
+      ! Setting initial position and velocity
+      elle%r(0,:) = (/0.1_REAL64, 0.5_REAL64/)
+      elle%v(0,:) = (/0.0_REAL64, 0.0_REAL64/)
+
+      DO i = 1,nx
+        DO j = 1,ny
+          rho(i,j) = EXP(-((xy%x(i)+0.250_REAL64)/0.1_REAL64)**2 - &
+          ((xy%y(j)+0.250_REAL64)/0.1_REAL64)**2) + &
+          EXP(-((xy%x(i)-0.750_REAL64)/0.2_REAL64)**2 - &
+          ((xy%y(j)-0.750_REAL64)/0.2_REAL64)**2)
+        END DO
+      END DO
+
+    END IF
+
+  DEALLOCATE(xy%x, xy%y)
+
+END SUBROUTINE init_conditions
 
 
   SUBROUTINE gauss_seidel(nx, ny, dx, dy, rho, phi)
