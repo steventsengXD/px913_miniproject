@@ -1,13 +1,12 @@
 MODULE helpers
 
   ! We import the modules that are utilized by these subroutines/functions
-  ! USE command_line
+  USE command_line
   USE domain_tools
   USE ISO_FORTRAN_ENV
 
   IMPLICIT NONE
-
-
+  SAVE
 
   TYPE xygrid
     REAL(REAL64), DIMENSION(:), ALLOCATABLE :: x, y
@@ -15,37 +14,79 @@ MODULE helpers
 
 
   ! Defined type for particle where r is position, v is velosity, a is acceleration
-  TYPE particle
+  TYPE electron
     REAL(REAL64), DIMENSION(:,:), ALLOCATABLE :: r, v, a
-  END TYPE particle
-
+  END TYPE electron
 
   CONTAINS
 
+  ! This subroutine collects/parses through each of the command line arguments
+  ! to ensure that they meet the minimal criteria for the program to run.
+  ! Program will run a default of the null problem with nx = ny = 50 if user
+  ! input doesnt make sense
+  SUBROUTINE parse(nx, ny, ic)
 
-  SUBROUTINE init_conditions(nx, ny, dx, dy, steps, rho, elle, ic)
+    INTEGER(INT32) :: nx, ny
+    CHARACTER(LEN=10) :: ic
+    LOGICAL :: success, exists
+
+    ! We utilize the parse_args subroutine to collect and store all the
+    ! command line arguments
+    CALL parse_args
+
+    ! get_arg is used on each argument individually to access them. If input is
+    ! unreasonable, a default value is set for each of the parameters.
+    success = get_arg("nx", nx, exists=exists)
+    IF (.NOT. success) THEN
+      nx = 50
+      PRINT*,"An integer was not set for nx! nx = 50 default value will be used."
+      PRINT*,""
+    END IF
+
+    success = get_arg("ny", ny, exists=exists)
+    IF (.NOT. success) THEN
+      ny = 50
+      PRINT*,"An integer was not set for ny! ny = 50 default value will be used."
+      PRINT*,""
+    END IF
+
+    ! The following checks to make sure one of three problems was stated
+    ! If not, the null problem is used by default
+    success = get_arg("problem", ic)
+    IF(success)THEN
+      IF (ic == "null" .OR. ic == "Null" .OR. ic == "single" .OR. ic == "Single" &
+      .OR. ic == "double" .OR. ic == "Double") THEN
+        CONTINUE
+      END IF
+    ELSE
+      ic = "null"
+      PRINT*,"A problem was not stated! Problem null default will be used."
+      PRINT*,""
+    END IF
+
+  END SUBROUTINE parse
+
+
+  SUBROUTINE initialize_sim(nx, ny, dx, dy, steps, rho, elle, ic)
 
     TYPE(xygrid) :: xy
-    TYPE(particle), INTENT(INOUT) :: elle
-    INTEGER(INT32), PARAMETER :: ghosts = 1_INT32
+    TYPE(electron), INTENT(INOUT) :: elle
+    INTEGER(INT32), PARAMETER :: ghosts = 1
     INTEGER(INT32) :: i, j
     INTEGER(INT32), INTENT(IN) :: nx, ny, steps
     REAL(REAL64), DIMENSION(2) :: xyrange
     REAL(REAL64), INTENT(INOUT) :: dx, dy
-    ! REAL(REAL64), DIMENSION(:), ALLOCATABLE :: x, y
     REAL(REAL64), DIMENSION(:,:), ALLOCATABLE :: rho
     CHARACTER(LEN=10), INTENT(IN) :: ic
 
-    ! ALLOCATE(rho(2*nx+1,2*ny+1))
     ALLOCATE(elle%r(0:steps,2))
     ALLOCATE(elle%v(0:steps,2))
-    ! ALLOCATE(xy(0:nx+1,0:ny+1))
     ALLOCATE(rho(0:nx+1,0:ny+1))
 
     xyrange = (/ -1.0_REAL64, 1.0_REAL64 /)
 
-    CALL create_axis(xy%x, nx-1, xyrange, ghosts)
-    CALL create_axis(xy%y, ny-1, xyrange, ghosts)
+    CALL create_axis(xy%x, nx, xyrange, ghosts)
+    CALL create_axis(xy%y, ny, xyrange, ghosts)
     print*, xy%x, xy%y
 
     ! Space step calculation
@@ -80,10 +121,10 @@ MODULE helpers
 
       DO i = 1,nx
         DO j = 1,ny
-          rho(i,j) = EXP(-((xy%x(i)+0.250_REAL64)/0.1_REAL64)**2 - &
-          ((xy%y(j)+0.250_REAL64)/0.1_REAL64)**2) + &
-          EXP(-((xy%x(i)-0.750_REAL64)/0.2_REAL64)**2 - &
-          ((xy%y(j)-0.750_REAL64)/0.2_REAL64)**2)
+          rho(i,j) = EXP(-((xy%x(i)+0.250_REAL64)/0.10_REAL64)**2 - &
+          ((xy%y(j)+0.250_REAL64)/0.10_REAL64)**2) + &
+          EXP(-((xy%x(i)-0.750_REAL64)/0.20_REAL64)**2 - &
+          ((xy%y(j)-0.750_REAL64)/0.20_REAL64)**2)
         END DO
       END DO
 
@@ -91,7 +132,7 @@ MODULE helpers
 
   DEALLOCATE(xy%x, xy%y)
 
-END SUBROUTINE init_conditions
+END SUBROUTINE initialize_sim
 
 
   SUBROUTINE gauss_seidel(nx, ny, dx, dy, rho, phi)
@@ -182,7 +223,7 @@ END SUBROUTINE init_conditions
 
   SUBROUTINE motion(dx, dy, steps, Ex, Ey, elle)
 
-
+    TYPE(electron) :: elle
     INTEGER(INT32) :: i = 1
     INTEGER(INT32) :: cell_x, cell_y
     INTEGER(INT32), INTENT(IN) :: steps
@@ -190,7 +231,7 @@ END SUBROUTINE init_conditions
     REAL(REAL64), PARAMETER :: dt = 0.01_REAL64
     ! REAL(REAL64), DIMENSION(0:nx+1,0:ny+1), INTENT(IN) :: phi
     REAL(REAL64), DIMENSION(:,:), ALLOCATABLE :: Ex, Ey
-    TYPE(particle) :: elle
+
 
     ! Allocate acceleration array of particle
     ALLOCATE(elle%a(0:steps,2))
@@ -214,8 +255,8 @@ END SUBROUTINE init_conditions
       cell_y = FLOOR((elle%r(i,2) - 1.0_REAL64)/dy) + 1
 
       ! Calculate next acceleration
-      elle%a(i,1) = Ex(cell_x, cell_y)
-      elle%a(i,2) = Ey(cell_x, cell_y)
+      elle%a(i,1) = -Ex(cell_x, cell_y)
+      elle%a(i,2) = -Ey(cell_x, cell_y)
 
       ! Calculate next velocity
       elle%v(i,1) = elle%v(i-1,1) + dt*(elle%a(i,1) + elle%a(i-1,1))/2.0_REAL64
