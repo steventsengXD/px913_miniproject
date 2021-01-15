@@ -20,7 +20,7 @@ MODULE write_netcdf
   
   !!!!!!!!!!!!!!!!! Inputs into the subroutine !!!!!!!!!!!!!!!!!
   !From the main part of the code
-  CHARACTER(LEN=100) :: filename
+  CHARACTER(LEN=30) :: filename !changed to match the one in main.f90
   REAL(REAL64), DIMENSION(:,:), INTENT(IN) :: phi, rho, Ex, Ey
   INTEGER(INT32) :: nx, ny
   
@@ -235,6 +235,12 @@ MODULE write_netcdf
     
   !Statement to say everything has run 
   PRINT *, "Success in writing file: ", filename
+  
+  IF (ierr /= nf90_noerr) THEN
+    PRINT *, TRIM(nf90_strerror(ierr))
+    PRINT *, "Failure in writing file"
+    RETURN
+  END IF   
   
   END SUBROUTINE write_file
   

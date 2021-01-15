@@ -45,9 +45,9 @@ ydata = np.linspace(-1, 1, 100)
 #Pseudocolour plot of the variable Ex
 #If it is being too slow use instead pcolormesh
 #Need a 2d grid
-fig, axs = plt.subplots(1)
+plt.figure(1)
 
-z = ax.pcolor(xdata, ydata, Ex, cmap = 'RdGy' )
+plt.pcolor(xdata, ydata, Ex, cmap = 'RdGy' )
 
 plt.title('Electric Field (Ex)')
 plt.xlabel('X')
