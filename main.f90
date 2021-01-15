@@ -1,7 +1,12 @@
+! Main driver program that calls the necessary subroutines and simulates
+! electron motion
+
 PROGRAM main
 
   ! We import the modules that are utilized by this program.
-  USE helpers
+  USE initialize
+  USE potential
+  USE motion
   USE write_netcdf
   USE ISO_FORTRAN_ENV
 
@@ -9,45 +14,43 @@ PROGRAM main
 
   ! Defining variable for electron using our defined type
   TYPE(electron) :: elle
+  ! Number timestep iterations electron will move
   INTEGER(INT32), PARAMETER :: steps = 1000
-  INTEGER(INT32) :: nx, ny, i = 1, j = 1
-  CHARACTER(LEN=30) :: filename
+
+  ! Initial condition variables which are input at command line:
+  ! The number of elements in the x and y directions and the problem type
+  INTEGER(INT32) :: nx, ny
   CHARACTER(LEN=10) :: ic
-  REAL(REAL64) :: dx=0, dy=0
-  ! REAL(REAL64) :: phix, phiy, etot = 0.0_REAL64, drms = 0.0_REAL64, ratio
+
+  ! Data file name for netCDF output
+  CHARACTER(LEN=30) :: filename = 'electron.nc4'
+
+  ! Space step variables
+  REAL(REAL64) :: dx, dy
+
+  ! Declaring the arrays for the potential, rho and electric field x, y values
   REAL(REAL64), DIMENSION(:,:), ALLOCATABLE :: phi, rho, Ex, Ey
 
 
+  ! Parse our command line inputs to obtain initial conditions
   CALL parse(nx, ny, ic)
 
-  filename = 'electron.txt'
-
+  ! Initialize the x,y axes, rho for the problem type, electron variable elle
   CALL initialize_sim(nx, ny, dx, dy, steps, rho, elle, ic)
-  Print *,dx,dy
-  CALL gauss_seidel(nx, ny, dx, dy, rho, phi)
-  CALL elecF(nx, ny, dx, dy, phi, Ex, Ey)
-  CALL motion(dx, dy, steps, Ex, Ey, elle)
 
-  open(9, file="potential.txt",form='formatted')
-    23 FORMAT(3(ES23.12E3))
-    ! Choose format for text file ( real numbers )
-    do i=1,nx
-      do j = 1, ny
-        write(9,23) phi(i,j), Ex(i,j), Ey(i,j)
-      end do
-    end do
-  close(9)
+  ! Calculate the potential using the Gauss-Seidel method
+  CALL get_potential(nx, ny, dx, dy, rho, phi)
 
-  open(10, file="position.txt",form='formatted')
-    24 FORMAT(3(ES23.12E3))
-    ! Choose format for text file ( real numbers )
-    do i=0,steps
+  ! Obtain electric field x and y values
+  CALL elecfield(nx, ny, dx, dy, phi, Ex, Ey)
 
-      write(10,24) elle%r(i,1), elle%r(i,2)
+  ! Move electron using velocity verlet algorithm
+  CALL advance_elec(dx, dy, steps, Ex, Ey, elle)
 
-    end do
-  close(10)
+  ! Write the results to netCDF file for python visualization
+  CALL write_file(filename, rho, phi, Ex, Ey, elle, nx, ny, ic)
 
-  DEALLOCATE(phi, rho, Ex, Ey)
+  ! Deallocating our variables
+  DEALLOCATE(phi, rho, Ex, Ey, elle%r, elle%v, elle%a)
 
 END PROGRAM main
