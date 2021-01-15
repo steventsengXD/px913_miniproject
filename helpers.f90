@@ -38,15 +38,15 @@ MODULE helpers
     ! unreasonable, a default value is set for each of the parameters.
     success = get_arg("nx", nx, exists=exists)
     IF (.NOT. success) THEN
-      nx = 50
-      PRINT*,"An integer was not set for nx! nx = 50 default value will be used."
+      nx = 51
+      PRINT*,"An integer was not set for nx! nx = 51 default value will be used."
       PRINT*,""
     END IF
 
     success = get_arg("ny", ny, exists=exists)
     IF (.NOT. success) THEN
-      ny = 50
-      PRINT*,"An integer was not set for ny! ny = 50 default value will be used."
+      ny = 51
+      PRINT*,"An integer was not set for ny! ny = 51 default value will be used."
       PRINT*,""
     END IF
 
@@ -71,7 +71,7 @@ MODULE helpers
 
     TYPE(xygrid) :: xy
     TYPE(electron), INTENT(INOUT) :: elle
-    INTEGER(INT32), PARAMETER :: ghosts = 1
+    INTEGER(INT32), PARAMETER :: ng = 1
     INTEGER(INT32) :: i, j
     INTEGER(INT32), INTENT(IN) :: nx, ny, steps
     REAL(REAL64), DIMENSION(2) :: xyrange
@@ -85,13 +85,17 @@ MODULE helpers
 
     xyrange = (/ -1.0_REAL64, 1.0_REAL64 /)
 
-    CALL create_axis(xy%x, nx, xyrange, ghosts)
-    CALL create_axis(xy%y, ny, xyrange, ghosts)
-    print*, xy%x, xy%y
+    CALL create_axis(xy%x, nx, xyrange, ng)
+    CALL create_axis(xy%y, ny, xyrange, ng)
+    ! print*, xy%x, xy%y
 
     ! Space step calculation
-    dx = 2.0_REAL64/REAL(nx-1, KIND=real64)
-    dy = 2.0_REAL64/REAL(ny-1, KIND=real64)
+    dx = xy%x(2)-xy%x(1)
+    dy = xy%y(2)-xy%y(1)
+
+    ! PRINT*, xy%x(2)-xy%x(1)
+    ! PRINT*, xy%y(2)-xy%y(1)
+    ! PRINT*, xy%x
 
     IF (ic == 'null') THEN
 
@@ -99,7 +103,7 @@ MODULE helpers
       elle%r(0,:) = (/0.0_REAL64, 0.0_REAL64/)
       elle%v(0,:) = (/0.1_REAL64, 0.1_REAL64/)
 
-      rho(i,j) = 0.0_REAL64
+      rho = 0.0_REAL64
 
     ELSE IF (ic == 'single') THEN
 
@@ -116,7 +120,7 @@ MODULE helpers
     ELSE IF (ic == 'double') THEN
 
       ! Setting initial position and velocity
-      elle%r(0,:) = (/0.1_REAL64, 0.5_REAL64/)
+      elle%r(0,:) = (/0.0_REAL64, 0.5_REAL64/)
       elle%v(0,:) = (/0.0_REAL64, 0.0_REAL64/)
 
       DO i = 1,nx
@@ -130,86 +134,78 @@ MODULE helpers
 
     END IF
 
-  DEALLOCATE(xy%x, xy%y)
+    DEALLOCATE(xy%x, xy%y)
 
-END SUBROUTINE initialize_sim
+  END SUBROUTINE initialize_sim
 
 
-  SUBROUTINE gauss_seidel(nx, ny, dx, dy, rho, phi)
+  SUBROUTINE get_potential(nx, ny, dx, dy, rho, phi)
 
-    REAL(REAL64) :: tol=1e-5
+    REAL(REAL64), PARAMETER :: tol=1e-5
     INTEGER(INT32), INTENT(IN) :: nx, ny
-    INTEGER(INT32) :: i, j
+    INTEGER(INT32) :: i, j, count = 0
     REAL(REAL64), INTENT(IN) :: dx, dy
     REAL(REAL64), DIMENSION(0:nx+1, 0:ny+1), INTENT(IN) :: rho
     REAL(REAL64), DIMENSION(:,:), ALLOCATABLE :: phi
     REAL(REAL64) :: phix, phiy, etot = 0.0_REAL64, drms = 0.0_REAL64
-    REAL(REAL64) :: denom, ratio = 1.0_REAL64
+    REAL(REAL64) :: ratio = 1.0_REAL64
 
     ALLOCATE(phi(0:nx+1, 0:ny+1))
-
-    ! Calculate denominator here first for neatness purposes
-    denom = -2.0_REAL64*(1.0_REAL64/dx**2+1.0_REAL64/dy**2)
+    phi = 0.0_REAL64
 
     DO WHILE(ratio>tol)
 
       DO i=1,nx
         DO j=1,ny
-          phi(i,j) = (-(phi(i+1,j)+phi(i-1,j))/dx**2 - (phi(i,j+1)+phi(i,j-1))/dy**2 &
-          + rho(i,j))/denom
-        END DO
-      END DO
-
-      DO i=1,nx
-        DO j=1,ny
-          phi(i,j) = (-(phi(i+1,j)+phi(i-1,j))/dx**2 - (phi(i,j+1)+phi(i,j-1))/dy**2 &
-          + rho(i,j))/denom
+          phi(i,j) = -(rho(i,j) - (phi(i+1,j)+phi(i-1,j))/dx**2 - &
+          (phi(i,j+1)+phi(i,j-1))/dy**2)/(2.0_REAL64/dx**2 + 2.0_REAL64/dy**2)
         END DO
       END DO
 
       etot = 0.0_REAL64
-      DO i=1,nx
-        DO j=1,ny
-          phix = (phi(i-1,j)-2.0_REAL64*phi(i,j)+phi(i+1,j))/dx**2
-          phiy = (phi(i,j-1)-2.0_REAL64*phi(i,j)+phi(i,j+1))/dy**2
-          etot = etot + ABS(phix + phiy - rho(i,j))
-        END DO
-      END DO
-
       drms = 0.0_REAL64
-
       DO i=1,nx
         DO j=1,ny
-          phix = (phi(i-1,j)-2.0_REAL64*phi(i,j)+phi(i+1,j))/dx**2
-          phiy = (phi(i,j-1)-2.0_REAL64*phi(i,j)+phi(i,j+1))/dy**2
-          drms = drms + phix + phiy
+          phix = (phi(i-1,j) - 2.0_REAL64*phi(i,j) + phi(i+1,j))/dx**2
+          phiy = (phi(i,j-1) - 2.0_REAL64*phi(i,j) + phi(i,j+1))/dy**2
+          etot = etot + ABS(phix + phiy - rho(i,j))
+          drms = drms + (phix + phiy)**2
         END DO
       END DO
 
-      ratio = etot  ! /REAL(drms/((nx+1)*(ny+1)), KIND=REAL64)
+      drms = SQRT(drms/REAL(nx*ny, KIND=REAL64))
 
-      ! Update tol value to this in case drms equals to zero
-      tol = REAL(drms/(nx*ny), KIND=REAL64) * 1e-5
+      PRINT*, count, drms
 
-      ! PRINT*, etot/REAL(drms/((nx+1)*(ny+1)), KIND=REAL64)
+      ! Check if drms equals 0 and continue while loop if it does
+      IF (drms == 0) THEN
+        ratio = etot
+      ELSE
+        ratio = etot/drms
+      END IF
+
+      count = count + 1
 
     END DO
 
-  END SUBROUTINE gauss_seidel
+    ! PRINT*, count
+
+  END SUBROUTINE get_potential
 
 
   ! Subroutine that sets the electric field
   ! Can probably create a 3d array or defined type for this so that
   ! only one variable is needed
-  SUBROUTINE elecF(nx, ny, dx, dy, phi, Ex, Ey)
+  SUBROUTINE elecfield(nx, ny, dx, dy, phi, Ex, Ey)
 
     INTEGER(INT32) :: i = 1, j = 1
     INTEGER(INT32), INTENT(IN) :: nx, ny
     REAL(REAL64), INTENT(IN) :: dx, dy
     REAL(REAL64), DIMENSION(0:nx+1,0:ny+1), INTENT(IN) :: phi
-    REAL(REAL64), DIMENSION(:,:), ALLOCATABLE :: Ex, Ey
+    REAL(REAL64), DIMENSION(:,:), ALLOCATABLE, INTENT(INOUT) :: Ex, Ey
 
-    ALLOCATE(Ex(1:nx,1:ny), Ey(1:nx,1:ny))
+    ALLOCATE(Ex(1:nx,1:ny))
+    ALLOCATE(Ey(1:nx,1:ny))
 
     DO i = 1,nx
       DO j = 1,ny
@@ -218,7 +214,7 @@ END SUBROUTINE initialize_sim
       END DO
     END DO
 
-  END SUBROUTINE elecF
+  END SUBROUTINE elecfield
 
 
   SUBROUTINE motion(dx, dy, steps, Ex, Ey, elle)
@@ -232,17 +228,18 @@ END SUBROUTINE initialize_sim
     ! REAL(REAL64), DIMENSION(0:nx+1,0:ny+1), INTENT(IN) :: phi
     REAL(REAL64), DIMENSION(:,:), ALLOCATABLE :: Ex, Ey
 
-
     ! Allocate acceleration array of particle
     ALLOCATE(elle%a(0:steps,2))
 
     ! Calculates which cell particle is starting in
-    cell_x = FLOOR((elle%r(0,1) - 1.0_REAL64)/dx) + 1
-    cell_y = FLOOR((elle%r(0,2) - 1.0_REAL64)/dy) + 1
+    cell_x = FLOOR((elle%r(0,1) + 1.0_REAL64)/dx) + 1
+    cell_y = FLOOR((elle%r(0,2) + 1.0_REAL64)/dy) + 1
+
+    ! PRINT *, cell_x,cell_y
 
     ! Calculate initial acceleration
-    elle%a(0,1) = Ex(cell_x, cell_y)
-    elle%a(0,2) = Ey(cell_x, cell_y)
+    elle%a(0,1) = -Ex(cell_x, cell_y)
+    elle%a(0,2) = -Ey(cell_x, cell_y)
 
     ! Particle motion using velocity verlet algorithm
     DO i=1, steps
@@ -251,10 +248,13 @@ END SUBROUTINE initialize_sim
       elle%r(i,2) = elle%r(i-1,2) + elle%v(i-1,2)*dt + (elle%a(i-1,2)*dt)**2/2.0_REAL64
 
       ! Locate cell indices for electron
-      cell_x = FLOOR((elle%r(i,1) - 1.0_REAL64)/dx) + 1
-      cell_y = FLOOR((elle%r(i,2) - 1.0_REAL64)/dy) + 1
+      cell_x = FLOOR((elle%r(i,1) + 1.0_REAL64)/dx) + 1
+      cell_y = FLOOR((elle%r(i,2) + 1.0_REAL64)/dy) + 1
 
-      ! Calculate next acceleration
+      ! PRINT*, elle%r(i,:)
+      ! PRINT *, cell_x,cell_y
+
+      ! Calculate next acceleration, -1 due to negative charge of electron
       elle%a(i,1) = -Ex(cell_x, cell_y)
       elle%a(i,2) = -Ey(cell_x, cell_y)
 
@@ -265,8 +265,6 @@ END SUBROUTINE initialize_sim
       ! PRINT*, elle%r(i,1), elle%r(i,2)
 
     END DO
-
-
 
   END SUBROUTINE motion
 
